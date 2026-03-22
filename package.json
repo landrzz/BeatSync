@@ -1,0 +1,42 @@
+{
+  "name": "beatsync-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@clerk/expo": "^3.1.4",
+    "@expo/vector-icons": "^14.1.0",
+    "convex": "^1.34.0",
+    "expo": "~53.0.0",
+    "expo-auth-session": "~6.2.0",
+    "expo-constants": "~17.1.0",
+    "expo-crypto": "~14.1.0",
+    "expo-font": "~13.3.1",
+    "expo-linking": "~7.1.0",
+    "expo-router": "~5.1.11",
+    "expo-secure-store": "~14.2.0",
+    "expo-status-bar": "~2.2.0",
+    "expo-web-browser": "~14.2.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.79.6",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-url-polyfill": "^2.0.0",
+    "react-native-web": "^0.20.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@types/node": "^22.14.1",
+    "@types/react": "~19.0.10",
+    "typescript": "~5.8.3"
+  }
+}

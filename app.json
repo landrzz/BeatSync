@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "BeatSync MVP",
+    "slug": "beatsync-mvp",
+    "scheme": "beatsync",
+    "plugins": [
+      "expo-router",
+      "@clerk/expo"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
