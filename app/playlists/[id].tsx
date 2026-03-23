@@ -1,23 +1,48 @@
 import { useState } from 'react';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Button, Card, Field, Label, Muted, Screen } from '@/components/ui';
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const isNew = id === 'new';
   const playlistId = id as any;
-  const details = useQuery(api.playlists.getPlaylistDetails, id ? { playlistId } : 'skip');
-  const tracks = useQuery(api.tracks.getPlaylistTracks, id ? { playlistId } : 'skip');
+  const details = useQuery(api.playlists.getPlaylistDetails, !isNew && id ? { playlistId } : 'skip');
+  const tracks = useQuery(api.tracks.getPlaylistTracks, !isNew && id ? { playlistId } : 'skip');
   const addTrack = useMutation(api.tracks.addTrackToPlaylist);
   const searchSpotifyTracks = useMutation(api.spotify.searchSpotifyTracks);
   const syncPlaylist = useMutation(api.spotify.syncPlaylistToSpotify);
 
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
   const [queryTitle, setQueryTitle] = useState('Blinding Lights');
   const [artists, setArtists] = useState('The Weeknd');
   const [spotifySearch, setSpotifySearch] = useState('The Weeknd Blinding Lights');
   const [spotifyResults, setSpotifyResults] = useState<any[]>([]);
   const [status, setStatus] = useState<string | null>(null);
+  const createPlaylist = useMutation(api.playlists.createPlaylist);
+
+  const onCreatePlaylist = async () => {
+    if (!newName.trim()) return;
+    const newId = await createPlaylist({ name: newName.trim(), description: newDescription.trim() || undefined });
+    router.replace(`/playlists/${newId}` as any);
+  };
+
+  if (isNew) {
+    return (
+      <Screen>
+        <Card title="New Playlist" subtitle="Give your playlist a name to get started.">
+          <Label>Name</Label>
+          <Field value={newName} onChangeText={setNewName} placeholder="My Playlist" />
+          <Label>Description (optional)</Label>
+          <Field value={newDescription} onChangeText={setNewDescription} placeholder="What's this playlist about?" />
+          <Button title="Create Playlist" onPress={onCreatePlaylist} disabled={!newName.trim()} />
+        </Card>
+      </Screen>
+    );
+  }
 
   const onAddTrack = async () => {
     const result = await addTrack({
