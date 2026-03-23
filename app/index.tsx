@@ -14,7 +14,7 @@ export default function HomeScreen() {
   const playlists = useQuery(api.playlists.getUserPlaylists, me ? {} : 'skip');
 
   useEffect(() => {
-    if (isSignedIn && !me) {
+    if (isSignedIn && me === null) {
       createUser({
         email: user?.emailAddresses?.[0]?.emailAddress,
         name: user?.fullName ?? undefined,
@@ -34,6 +34,7 @@ export default function HomeScreen() {
       ) : !me ? (
         <Card title="Setting up your BeatSync account...">
           <Muted>Syncing your Clerk identity with Convex...</Muted>
+          <Button title="Sign out" onPress={() => signOut()} />
         </Card>
       ) : (
         <Card title={`Welcome, ${me.name ?? me.email ?? 'User'}`} subtitle="Your collaborative music playlists">
