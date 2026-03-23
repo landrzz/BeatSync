@@ -1,9 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSignUp, useSSO } from '@clerk/expo';
 import * as AuthSession from 'expo-auth-session';
-import { Button, Card, Field, Label, Muted, Screen } from '@/components/ui';
+
+const BG = '#0a0f1a';
+const SURFACE = '#111827';
+const BORDER = '#1f2937';
+const ACCENT = '#22c55e';
+const ACCENT_DIM = '#16a34a';
 
 type Method = 'select' | 'email';
 type Step = 'input' | 'verify';
@@ -34,14 +49,12 @@ export default function SignUpScreen() {
     setGoogleLoading(true);
     try {
       const redirectUrl = AuthSession.makeRedirectUri({ scheme: 'beatsyncbuddy' });
-      console.log('[SignUp] Google SSO redirectUrl:', redirectUrl);
       const { createdSessionId, setActive } = await startSSOFlow({ strategy: 'oauth_google', redirectUrl });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
         router.replace('/');
       }
     } catch (err: any) {
-      console.error('[SignUp] Google SSO error:', JSON.stringify(err));
       setErrorMsg(err?.message ?? 'Google sign-up failed.');
     } finally {
       setGoogleLoading(false);
@@ -53,16 +66,12 @@ export default function SignUpScreen() {
     setErrorMsg(null);
     const { error } = await signUp.password({ emailAddress: email, password });
     if (error) {
-      const msg = (error as any)?.longMessage ?? (error as any)?.message ?? 'Sign-up failed.';
-      console.error('[SignUp] password() error:', JSON.stringify(error));
-      setErrorMsg(msg);
+      setErrorMsg((error as any)?.longMessage ?? (error as any)?.message ?? 'Sign-up failed.');
       return;
     }
     const { error: sendError } = await signUp.verifications.sendEmailCode();
     if (sendError) {
-      const msg = (sendError as any)?.longMessage ?? (sendError as any)?.message ?? 'Failed to send code.';
-      console.error('[SignUp] sendEmailCode() error:', JSON.stringify(sendError));
-      setErrorMsg(msg);
+      setErrorMsg((sendError as any)?.longMessage ?? (sendError as any)?.message ?? 'Failed to send code.');
       return;
     }
     setStep('verify');
@@ -73,14 +82,12 @@ export default function SignUpScreen() {
     setErrorMsg(null);
     const { error } = await signUp.verifications.verifyEmailCode({ code });
     if (error) {
-      const msg = (error as any)?.longMessage ?? (error as any)?.message ?? 'Verification failed.';
-      console.error('[SignUp] verifyEmailCode() error:', JSON.stringify(error));
-      setErrorMsg(msg);
+      setErrorMsg((error as any)?.longMessage ?? (error as any)?.message ?? 'Verification failed.');
       return;
     }
     if (signUp.status === 'complete') {
       const { error: fe } = await signUp.finalize();
-      if (fe) { console.error('[SignUp] finalize() error:', JSON.stringify(fe)); setErrorMsg((fe as any)?.message ?? 'Could not activate session.'); return; }
+      if (fe) { setErrorMsg((fe as any)?.message ?? 'Could not activate session.'); return; }
     }
     router.replace('/');
   };
@@ -94,106 +101,236 @@ export default function SignUpScreen() {
 
   const goSelect = () => { setMethod('select'); setStep('input'); setErrorMsg(null); };
 
-  if (method === 'select') {
-    return (
-      <Screen>
-        <Card title="Create account" subtitle="Choose how you'd like to sign up.">
-          <GoogleButton onPress={onGoogleSignUp} loading={googleLoading} />
-          <OrDivider />
-          <MethodButton icon="✉️" label="Continue with email" onPress={() => { setMethod('email'); setErrorMsg(null); }} />
-          {errorMsg ? <ErrorBanner message={errorMsg} /> : null}
-        </Card>
-        <Button title="Already have an account? Sign in" onPress={() => router.replace('/sign-in' as any)} />
-      </Screen>
-    );
-  }
-
-  if (method === 'email') {
-    if (step === 'input') {
-      return (
-        <Screen>
-          <BackRow label="Email sign-up  ·  Step 1 of 2" onBack={goSelect} />
-          <Card title="Your details" subtitle="Enter your email and a strong password.">
-            <Label>Email</Label>
-            <Field value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" placeholder="you@example.com" />
-            <Label>Password</Label>
-            <Field value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" placeholder="At least 8 characters" />
-            {errorMsg ? <ErrorBanner message={errorMsg} /> : null}
-            <Button title={loading ? 'Sending code…' : 'Continue'} onPress={onEmailContinue} disabled={loading || !email || !password} />
-            {loading ? <ActivityIndicator color="#22c55e" style={{ marginTop: 4 }} /> : null}
-          </Card>
-        </Screen>
-      );
-    }
-    return (
-      <Screen>
-        <BackRow label="Email sign-up  ·  Step 2 of 2" onBack={onBack} />
-        <Card title="Verify your email" subtitle={`Enter the 6-digit code sent to ${email}`}>
-          <Label>Verification code</Label>
-          <Field value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="one-time-code" placeholder="123456" maxLength={6} />
-          {errorMsg ? <ErrorBanner message={errorMsg} /> : null}
-          <Button title={loading ? 'Verifying…' : 'Verify email'} onPress={onVerifyEmail} disabled={loading || code.length < 6} />
-          {loading ? <ActivityIndicator color="#22c55e" style={{ marginTop: 4 }} /> : null}
-        </Card>
-      </Screen>
-    );
-  }
-
-  return null;
-}
-
-function GoogleButton({ onPress, loading }: { onPress: () => void; loading: boolean }) {
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={loading}
-      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 12, padding: 14, opacity: loading ? 0.6 : 1 }}
-    >
-      {loading
-        ? <ActivityIndicator color="#1f2937" />
-        : <Text style={{ fontSize: 16 }}>G</Text>}
-      <Text style={{ color: '#1f2937', fontWeight: '700', fontSize: 15 }}>Continue with Google</Text>
-    </Pressable>
+    <View style={{ flex: 1, backgroundColor: BG }}>
+      <StatusBar barStyle="light-content" />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 28 }} keyboardShouldPersistTaps="handled">
+
+          {/* Logo */}
+          <View style={{ alignItems: 'center', marginBottom: 40 }}>
+            <Text style={{ fontSize: 48, marginBottom: 12 }}>🎵</Text>
+            <Text style={{ color: '#fff', fontSize: 30, fontWeight: '800', letterSpacing: -0.5 }}>Create account</Text>
+            <Text style={{ color: '#64748b', fontSize: 15, marginTop: 6 }}>Start syncing music with friends</Text>
+          </View>
+
+          {method === 'select' && (
+            <View style={{ gap: 12 }}>
+              <Pressable
+                onPress={onGoogleSignUp}
+                disabled={googleLoading}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  backgroundColor: pressed ? '#e5e7eb' : '#fff',
+                  borderRadius: 14,
+                  padding: 16,
+                  opacity: googleLoading ? 0.6 : 1,
+                })}
+              >
+                {googleLoading
+                  ? <ActivityIndicator color="#1f2937" />
+                  : <Text style={{ fontSize: 18 }}>G</Text>}
+                <Text style={{ color: '#111827', fontWeight: '700', fontSize: 16 }}>Continue with Google</Text>
+              </Pressable>
+
+              <OrDivider />
+
+              <Pressable
+                onPress={() => { setMethod('email'); setErrorMsg(null); }}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 14,
+                  backgroundColor: pressed ? '#1a2233' : SURFACE,
+                  borderRadius: 14,
+                  padding: 16,
+                  borderWidth: 1,
+                  borderColor: BORDER,
+                })}
+              >
+                <Text style={{ fontSize: 20 }}>✉️</Text>
+                <Text style={{ color: '#e2e8f0', fontWeight: '600', fontSize: 16 }}>Continue with email</Text>
+                <Text style={{ color: '#475569', marginLeft: 'auto', fontSize: 18 }}>›</Text>
+              </Pressable>
+
+              {errorMsg ? <ErrorBanner message={errorMsg} /> : null}
+            </View>
+          )}
+
+          {method === 'email' && step === 'input' && (
+            <View style={{ gap: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Pressable onPress={goSelect} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ color: ACCENT, fontSize: 16 }}>←</Text>
+                  <Text style={{ color: ACCENT, fontWeight: '600', fontSize: 14 }}>Back</Text>
+                </Pressable>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: ACCENT }} />
+                  <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: BORDER }} />
+                </View>
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <Text style={{ color: '#94a3b8', fontSize: 13, fontWeight: '600', marginBottom: 2 }}>EMAIL</Text>
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  placeholder="you@example.com"
+                  placeholderTextColor="#475569"
+                  style={{
+                    backgroundColor: SURFACE,
+                    color: '#f1f5f9',
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    fontSize: 16,
+                    borderWidth: 1,
+                    borderColor: BORDER,
+                  }}
+                />
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <Text style={{ color: '#94a3b8', fontSize: 13, fontWeight: '600', marginBottom: 2 }}>PASSWORD</Text>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  placeholderTextColor="#475569"
+                  style={{
+                    backgroundColor: SURFACE,
+                    color: '#f1f5f9',
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    fontSize: 16,
+                    borderWidth: 1,
+                    borderColor: BORDER,
+                  }}
+                />
+              </View>
+
+              {errorMsg ? <ErrorBanner message={errorMsg} /> : null}
+
+              <Pressable
+                onPress={onEmailContinue}
+                disabled={loading || !email || !password}
+                style={({ pressed }) => ({
+                  backgroundColor: loading || !email || !password ? '#1e293b' : pressed ? ACCENT_DIM : ACCENT,
+                  padding: 16,
+                  borderRadius: 14,
+                  alignItems: 'center',
+                  marginTop: 4,
+                })}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={{ color: loading || !email || !password ? '#475569' : '#020617', fontWeight: '800', fontSize: 16 }}>Continue</Text>}
+              </Pressable>
+            </View>
+          )}
+
+          {method === 'email' && step === 'verify' && (
+            <View style={{ gap: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Pressable onPress={onBack} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ color: ACCENT, fontSize: 16 }}>←</Text>
+                  <Text style={{ color: ACCENT, fontWeight: '600', fontSize: 14 }}>Back</Text>
+                </Pressable>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: ACCENT }} />
+                  <View style={{ width: 20, height: 4, borderRadius: 2, backgroundColor: ACCENT }} />
+                </View>
+              </View>
+
+              <View style={{ backgroundColor: SURFACE, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: BORDER, gap: 4 }}>
+                <Text style={{ color: '#94a3b8', fontSize: 13, fontWeight: '600' }}>CODE SENT TO</Text>
+                <Text style={{ color: '#f1f5f9', fontSize: 15, fontWeight: '600' }}>{email}</Text>
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <Text style={{ color: '#94a3b8', fontSize: 13, fontWeight: '600', marginBottom: 2 }}>VERIFICATION CODE</Text>
+                <TextInput
+                  value={code}
+                  onChangeText={setCode}
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  placeholder="123456"
+                  placeholderTextColor="#475569"
+                  maxLength={6}
+                  style={{
+                    backgroundColor: SURFACE,
+                    color: '#f1f5f9',
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    fontSize: 24,
+                    fontWeight: '700',
+                    letterSpacing: 8,
+                    borderWidth: 1,
+                    borderColor: code.length === 6 ? ACCENT : BORDER,
+                    textAlign: 'center',
+                  }}
+                />
+              </View>
+
+              {errorMsg ? <ErrorBanner message={errorMsg} /> : null}
+
+              <Pressable
+                onPress={onVerifyEmail}
+                disabled={loading || code.length < 6}
+                style={({ pressed }) => ({
+                  backgroundColor: loading || code.length < 6 ? '#1e293b' : pressed ? ACCENT_DIM : ACCENT,
+                  padding: 16,
+                  borderRadius: 14,
+                  alignItems: 'center',
+                  marginTop: 4,
+                })}
+              >
+                {loading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={{ color: loading || code.length < 6 ? '#475569' : '#020617', fontWeight: '800', fontSize: 16 }}>Verify email</Text>}
+              </Pressable>
+            </View>
+          )}
+
+          {/* Footer */}
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 36 }}>
+            <Text style={{ color: '#64748b', fontSize: 14 }}>Already have an account?</Text>
+            <Pressable onPress={() => router.replace('/sign-in' as any)}>
+              <Text style={{ color: ACCENT, fontWeight: '700', fontSize: 14 }}>Sign in</Text>
+            </Pressable>
+          </View>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 function OrDivider() {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 4 }}>
-      <View style={{ flex: 1, height: 1, backgroundColor: '#1f2937' }} />
-      <Text style={{ color: '#475569', fontSize: 12, fontWeight: '600' }}>OR</Text>
-      <View style={{ flex: 1, height: 1, backgroundColor: '#1f2937' }} />
-    </View>
-  );
-}
-
-function MethodButton({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#1f2937', borderRadius: 12, padding: 14 }}
-    >
-      <Text style={{ fontSize: 18 }}>{icon}</Text>
-      <Text style={{ color: '#e2e8f0', fontWeight: '600', fontSize: 15 }}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function BackRow({ label, onBack }: { label: string; onBack: () => void }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-      <Pressable onPress={onBack} style={{ padding: 6 }}>
-        <Text style={{ color: '#22c55e', fontWeight: '700', fontSize: 15 }}>← Back</Text>
-      </Pressable>
-      <Text style={{ color: '#475569', fontSize: 12 }}>{label}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <View style={{ flex: 1, height: 1, backgroundColor: BORDER }} />
+      <Text style={{ color: '#475569', fontSize: 12, fontWeight: '600', letterSpacing: 1 }}>OR</Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: BORDER }} />
     </View>
   );
 }
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <View style={{ backgroundColor: '#450a0a', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#991b1b' }}>
-      <Muted style={{ color: '#fca5a5' }}>{message}</Muted>
+    <View style={{ backgroundColor: '#450a0a', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#991b1b', flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+      <Text style={{ fontSize: 16 }}>⚠️</Text>
+      <Text style={{ color: '#fca5a5', fontSize: 14, flex: 1, lineHeight: 20 }}>{message}</Text>
     </View>
   );
 }

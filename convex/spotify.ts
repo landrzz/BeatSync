@@ -1,4 +1,4 @@
-import { mutation } from './_generated/server';
+import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { now } from './lib/helpers';
 import { getCurrentUserRecord } from './users';
@@ -136,6 +136,15 @@ export const refreshSpotifyToken = mutation({
     });
 
     return { refreshed: true, expiresAt: ts + (json.expires_in ?? 3600) * 1000 };
+  },
+});
+
+export const isSpotifyConnected = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUserRecord(ctx);
+    const connection = await ctx.db.query('spotify_connections').withIndex('by_user', (q) => q.eq('userId', user._id)).unique();
+    return connection !== null;
   },
 });
 
