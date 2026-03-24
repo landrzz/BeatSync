@@ -16,3 +16,8 @@ function randomSegment(length: number) {
 export function createInviteToken() {
   return `invite_${Date.now().toString(36)}_${randomSegment(10)}`;
 }
+
+export function createShortCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}

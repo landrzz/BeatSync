@@ -46,7 +46,7 @@ export default function HomeScreen() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, gap: 8 }}>
           <Text style={{ fontSize: 52, marginBottom: 8 }}>🎵</Text>
           <Text style={{ color: '#fff', fontSize: 32, fontWeight: '800', letterSpacing: -0.5, textAlign: 'center' }}>
-            BeatSync
+            Beat Sync Buddy
           </Text>
           <Text style={{ color: '#64748b', fontSize: 16, textAlign: 'center', lineHeight: 24, marginBottom: 24 }}>
             Collaborative playlists.{'\n'}Any platform, any friend.

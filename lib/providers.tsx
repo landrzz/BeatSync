@@ -11,7 +11,7 @@ const convex = env.convexUrl ? new ConvexReactClient(env.convexUrl) : null;
 function MissingConfig() {
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#0b1020' }}>
-      <Text style={{ color: 'white', fontSize: 18, fontWeight: '700', marginBottom: 10 }}>BeatSync MVP</Text>
+      <Text style={{ color: 'white', fontSize: 18, fontWeight: '700', marginBottom: 10 }}>Beat Sync Buddy</Text>
       <Text style={{ color: '#cbd5e1', textAlign: 'center' }}>
         Add Clerk and Convex environment variables to use the live app. The UI scaffold is ready, but auth/data calls need real project keys.
       </Text>

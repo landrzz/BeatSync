@@ -97,15 +97,17 @@ export default defineSchema({
   invites: defineTable({
     playlistId: v.id('playlists'),
     invitedByUserId: v.id('users'),
-    email: v.string(),
+    email: v.optional(v.string()),
     token: v.string(),
+    shortCode: v.optional(v.string()),
     status: v.union(v.literal('pending'), v.literal('accepted'), v.literal('expired')),
     expiresAt: v.number(),
     acceptedByUserId: v.optional(v.id('users')),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index('by_token', ['token'])
-    .index('by_playlist', ['playlistId']),
+    .index('by_playlist', ['playlistId'])
+    .index('by_short_code', ['shortCode']),
 
   spotify_connections: defineTable({
     userId: v.id('users'),

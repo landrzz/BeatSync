@@ -83,7 +83,7 @@ export default function SignInScreen() {
           <View style={{ alignItems: 'center', marginBottom: 40 }}>
             <Text style={{ fontSize: 48, marginBottom: 12 }}>🎵</Text>
             <Text style={{ color: '#fff', fontSize: 30, fontWeight: '800', letterSpacing: -0.5 }}>Welcome back</Text>
-            <Text style={{ color: '#64748b', fontSize: 15, marginTop: 6 }}>Sign in to your BeatSync account</Text>
+            <Text style={{ color: '#64748b', fontSize: 15, marginTop: 6 }}>Sign in to your Beat Sync Buddy account</Text>
           </View>
 
           {method === 'select' ? (

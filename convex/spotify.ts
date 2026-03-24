@@ -262,7 +262,7 @@ export const syncPlaylistToSpotify = mutation({
         method: 'POST',
         body: JSON.stringify({
           name: playlist.name,
-          description: playlist.description ?? 'Synced from BeatSync',
+          description: playlist.description ?? 'Synced from Beat Sync Buddy',
           public: playlist.visibility === 'shared',
         }),
       });
