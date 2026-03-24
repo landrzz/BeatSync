@@ -193,28 +193,61 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Floating Action Button */}
-      <Pressable
-        onPress={() => router.push('/playlists/new' as any)}
-        style={({ pressed }) => ({
-          position: 'absolute',
-          bottom: 36,
-          right: 24,
-          backgroundColor: pressed ? ACCENT_DIM : ACCENT,
-          width: 60,
-          height: 60,
-          borderRadius: 30,
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: ACCENT,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.5,
-          shadowRadius: 12,
-          elevation: 8,
-        })}
-      >
-        <Text style={{ color: '#020617', fontSize: 30, fontWeight: '300', lineHeight: 34 }}>+</Text>
-      </Pressable>
+      {/* Bottom Action Buttons */}
+      <View style={{
+        position: 'absolute',
+        bottom: 36,
+        left: 24,
+        right: 24,
+        flexDirection: 'row',
+        gap: 12,
+        alignItems: 'center',
+      }}>
+        {/* Join playlist button */}
+        <Pressable
+          onPress={() => router.push('/join' as any)}
+          style={({ pressed }) => ({
+            flex: 1,
+            backgroundColor: pressed ? '#1e293b' : SURFACE,
+            padding: 16,
+            borderRadius: 16,
+            alignItems: 'center',
+            flexDirection: 'row',
+            justifyContent: 'center',
+            gap: 8,
+            borderWidth: 1,
+            borderColor: BORDER,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 6,
+          })}
+        >
+          <Text style={{ fontSize: 18 }}>👥</Text>
+          <Text style={{ color: '#e2e8f0', fontWeight: '700', fontSize: 15 }}>Join a playlist</Text>
+        </Pressable>
+
+        {/* Create playlist FAB */}
+        <Pressable
+          onPress={() => router.push('/playlists/new' as any)}
+          style={({ pressed }) => ({
+            backgroundColor: pressed ? ACCENT_DIM : ACCENT,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: ACCENT,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.5,
+            shadowRadius: 12,
+            elevation: 8,
+          })}
+        >
+          <Text style={{ color: '#020617', fontSize: 28, fontWeight: '300', lineHeight: 32 }}>+</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
