@@ -10,6 +10,12 @@
       "expo-secure-store",
       "expo-web-browser"
     ],
+    "ios": {
+      "bundleIdentifier": "com.beatsyncbuddy.app"
+    },
+    "android": {
+      "package": "com.beatsyncbuddy.app"
+    },
     "experiments": {
       "typedRoutes": true
     }
