@@ -1,0 +1,10 @@
+diff --git a/node_modules/@clerk/expo/src/specs/NativeClerkModule.ts b/node_modules/@clerk/expo/src/specs/NativeClerkModule.ts
+index ad1464e..1c38d2c 100644
+--- a/node_modules/@clerk/expo/src/specs/NativeClerkModule.ts
++++ b/node_modules/@clerk/expo/src/specs/NativeClerkModule.ts
+@@ -11,4 +11,4 @@ export interface Spec extends TurboModule {
+   signOut(): Promise<void>;
+ }
+ 
+-export default TurboModuleRegistry?.get<Spec>('ClerkExpo') ?? null;
++export default TurboModuleRegistry.get<Spec>('ClerkExpo');

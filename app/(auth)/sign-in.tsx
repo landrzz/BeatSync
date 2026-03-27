@@ -23,7 +23,7 @@ const ACCENT_DIM = '#16a34a';
 type Method = 'select' | 'email';
 
 export default function SignInScreen() {
-  const { signIn, errors, fetchStatus } = useSignIn();
+  const { signIn, setActive, errors, fetchStatus } = useSignIn();
   const { startSSOFlow } = useSSO();
   const router = useRouter();
 
@@ -59,18 +59,20 @@ export default function SignInScreen() {
   };
 
   const onEmailSignIn = async () => {
-    if (!signIn) return;
+    if (!signIn || !setActive) return;
     setErrorMsg(null);
-    const { error } = await signIn.password({ identifier: email, password });
-    if (error) {
-      setErrorMsg((error as any)?.longMessage ?? (error as any)?.message ?? 'Sign-in failed.');
-      return;
+    try {
+      const result = await signIn.create({ identifier: email, password });
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId });
+        router.replace('/');
+      } else {
+        setErrorMsg('Sign-in could not be completed. Please try again.');
+      }
+    } catch (err: any) {
+      const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? 'Sign-in failed.';
+      setErrorMsg(msg);
     }
-    if (signIn.status === 'complete') {
-      const { error: fe } = await signIn.finalize();
-      if (fe) { setErrorMsg((fe as any)?.message ?? 'Could not activate session.'); return; }
-    }
-    router.replace('/');
   };
 
   return (
