@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSignUp, useSSO } from '@clerk/expo';
+import { useSignUp, useSSO, useClerk } from '@clerk/expo';
 import * as AuthSession from 'expo-auth-session';
 
 const BG = '#0a0f1a';
@@ -24,7 +24,8 @@ type Method = 'select' | 'email';
 type Step = 'input' | 'verify';
 
 export default function SignUpScreen() {
-  const { signUp, errors, fetchStatus } = useSignUp();
+  const { signUp } = useSignUp();
+  const { setActive } = useClerk();
   const { startSSOFlow } = useSSO();
   const router = useRouter();
 
@@ -32,17 +33,11 @@ export default function SignUpScreen() {
   const [step, setStep] = useState<Step>('input');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [code, setCode] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const loading = fetchStatus === 'fetching';
-
-  useEffect(() => {
-    if (errors?.raw && errors.raw.length > 0) {
-      console.error('[SignUp] Clerk errors:', JSON.stringify(errors.raw));
-    }
-  }, [errors]);
 
   const onGoogleSignUp = async () => {
     setErrorMsg(null);
@@ -63,43 +58,66 @@ export default function SignUpScreen() {
 
   const onEmailContinue = async () => {
     if (!signUp) return;
+    setLoading(true);
     setErrorMsg(null);
-    const { error } = await signUp.password({ emailAddress: email, password });
-    if (error) {
-      setErrorMsg((error as any)?.longMessage ?? (error as any)?.message ?? 'Sign-up failed.');
-      return;
+    try {
+      const createResult: any = await signUp.create({ emailAddress: email, password });
+      if (createResult?.error) {
+        const e = createResult.error;
+        setErrorMsg(e?.longMessage ?? e?.message ?? 'Sign-up failed.');
+        return;
+      }
+      const sendResult: any = await signUp.verifications.sendEmailCode();
+      if (sendResult?.error) {
+        const e = sendResult.error;
+        setErrorMsg(e?.longMessage ?? e?.message ?? 'Failed to send verification email.');
+        return;
+      }
+      setStep('verify');
+    } catch (err: any) {
+      const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? 'Sign-up failed.';
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
     }
-    const { error: sendError } = await signUp.verifications.sendEmailCode();
-    if (sendError) {
-      setErrorMsg((sendError as any)?.longMessage ?? (sendError as any)?.message ?? 'Failed to send code.');
-      return;
-    }
-    setStep('verify');
   };
 
   const onVerifyEmail = async () => {
     if (!signUp) return;
+    setLoading(true);
     setErrorMsg(null);
-    const { error } = await signUp.verifications.verifyEmailCode({ code });
-    if (error) {
-      setErrorMsg((error as any)?.longMessage ?? (error as any)?.message ?? 'Verification failed.');
-      return;
+    try {
+      const verifyResult: any = await signUp.verifications.verifyEmailCode({ code });
+      if (verifyResult?.error) {
+        const e = verifyResult.error;
+        setErrorMsg(e?.longMessage ?? e?.message ?? 'Incorrect code.');
+        return;
+      }
+      const sessionId = signUp.createdSessionId;
+      if (sessionId) {
+        await setActive({ session: sessionId });
+        router.replace('/');
+      } else {
+        setErrorMsg('Verification could not be completed. Please try again.');
+      }
+    } catch (err: any) {
+      const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? 'Verification failed.';
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
     }
-    if (signUp.status === 'complete') {
-      const { error: fe } = await signUp.finalize();
-      if (fe) { setErrorMsg((fe as any)?.message ?? 'Could not activate session.'); return; }
-    }
-    router.replace('/');
   };
 
   const onBack = async () => {
     if (signUp) await signUp.reset();
     setStep('input');
     setCode('');
+    setConfirmPassword('');
     setErrorMsg(null);
   };
 
-  const goSelect = () => { setMethod('select'); setStep('input'); setErrorMsg(null); };
+  const goSelect = () => { setMethod('select'); setStep('input'); setErrorMsg(null); setConfirmPassword(''); };
+  const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
 
   return (
     <View style={{ flex: 1, backgroundColor: BG }}>
@@ -181,6 +199,7 @@ export default function SignUpScreen() {
                   autoCapitalize="none"
                   keyboardType="email-address"
                   autoComplete="email"
+                  textContentType="emailAddress"
                   placeholder="you@example.com"
                   placeholderTextColor="#475569"
                   style={{
@@ -203,6 +222,8 @@ export default function SignUpScreen() {
                   onChangeText={setPassword}
                   secureTextEntry
                   autoComplete="new-password"
+                  textContentType="newPassword"
+                  passwordRules="minlength: 8;"
                   placeholder="At least 8 characters"
                   placeholderTextColor="#475569"
                   style={{
@@ -218,13 +239,39 @@ export default function SignUpScreen() {
                 />
               </View>
 
+              <View style={{ gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                  <Text style={{ color: '#94a3b8', fontSize: 13, fontWeight: '600' }}>CONFIRM PASSWORD</Text>
+                  {passwordsMatch && <Text style={{ color: ACCENT, fontSize: 13, fontWeight: '700' }}>✓ Passwords match</Text>}
+                </View>
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                  placeholder="Re-enter your password"
+                  placeholderTextColor="#475569"
+                  style={{
+                    backgroundColor: SURFACE,
+                    color: '#f1f5f9',
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    fontSize: 16,
+                    borderWidth: 1,
+                    borderColor: confirmPassword.length > 0 ? (passwordsMatch ? ACCENT : '#ef4444') : BORDER,
+                  }}
+                />
+              </View>
+
               {errorMsg ? <ErrorBanner message={errorMsg} /> : null}
 
               <Pressable
                 onPress={onEmailContinue}
-                disabled={loading || !email || !password}
+                disabled={loading || !email || !passwordsMatch}
                 style={({ pressed }) => ({
-                  backgroundColor: loading || !email || !password ? '#1e293b' : pressed ? ACCENT_DIM : ACCENT,
+                  backgroundColor: loading || !email || !passwordsMatch ? '#1e293b' : pressed ? ACCENT_DIM : ACCENT,
                   padding: 16,
                   borderRadius: 14,
                   alignItems: 'center',
@@ -233,7 +280,7 @@ export default function SignUpScreen() {
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={{ color: loading || !email || !password ? '#475569' : '#020617', fontWeight: '800', fontSize: 16 }}>Continue</Text>}
+                  : <Text style={{ color: loading || !email || !passwordsMatch ? '#475569' : '#020617', fontWeight: '800', fontSize: 16 }}>Continue</Text>}
               </Pressable>
             </View>
           )}

@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSignIn, useSSO } from '@clerk/expo';
+import { useSignIn, useSSO, useClerk } from '@clerk/expo';
 import * as AuthSession from 'expo-auth-session';
 
 const BG = '#0a0f1a';
@@ -23,7 +23,8 @@ const ACCENT_DIM = '#16a34a';
 type Method = 'select' | 'email';
 
 export default function SignInScreen() {
-  const { signIn, setActive, errors, fetchStatus } = useSignIn();
+  const { signIn } = useSignIn();
+  const { setActive } = useClerk();
   const { startSSOFlow } = useSSO();
   const router = useRouter();
 
@@ -31,15 +32,8 @@ export default function SignInScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const loading = fetchStatus === 'fetching';
-
-  useEffect(() => {
-    if (errors?.raw && errors.raw.length > 0) {
-      console.error('[SignIn] Clerk errors:', JSON.stringify(errors.raw));
-    }
-  }, [errors]);
 
   const onGoogleSignIn = async () => {
     setErrorMsg(null);
@@ -59,12 +53,33 @@ export default function SignInScreen() {
   };
 
   const onEmailSignIn = async () => {
-    if (!signIn || !setActive) return;
+    if (!signIn) return;
+    setLoading(true);
     setErrorMsg(null);
     try {
-      const result = await signIn.create({ identifier: email, password });
-      if (result.status === 'complete') {
-        await setActive({ session: result.createdSessionId });
+      // Step 1: submit identifier only (new 2025-11 API rejects password in create())
+      const createResult: any = await signIn.create({ identifier: email });
+      if (createResult?.error) {
+        const e = createResult.error;
+        setErrorMsg(e?.longMessage ?? e?.message ?? 'Sign-in failed.');
+        return;
+      }
+
+      // Step 2: verify password via signIn.password()
+      const passResult: any = await (signIn as any).password({ password });
+      console.log('[SignIn] passResult keys:', Object.keys(passResult ?? {}));
+      console.log('[SignIn] passResult.error:', JSON.stringify(passResult?.error));
+      console.log('[SignIn] signIn.status after password:', (signIn as any).status);
+      console.log('[SignIn] signIn.createdSessionId after password:', signIn.createdSessionId);
+      if (passResult?.error) {
+        const e = passResult.error;
+        setErrorMsg(e?.longMessage ?? e?.message ?? 'Incorrect password.');
+        return;
+      }
+
+      const sessionId = signIn.createdSessionId;
+      if (sessionId) {
+        await setActive({ session: sessionId });
         router.replace('/');
       } else {
         setErrorMsg('Sign-in could not be completed. Please try again.');
@@ -72,6 +87,8 @@ export default function SignInScreen() {
     } catch (err: any) {
       const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? 'Sign-in failed.';
       setErrorMsg(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -149,6 +166,7 @@ export default function SignInScreen() {
                   autoCapitalize="none"
                   keyboardType="email-address"
                   autoComplete="email"
+                  textContentType="username"
                   placeholder="you@example.com"
                   placeholderTextColor="#475569"
                   style={{
@@ -171,6 +189,7 @@ export default function SignInScreen() {
                   onChangeText={setPassword}
                   secureTextEntry
                   autoComplete="current-password"
+                  textContentType="password"
                   placeholder="Your password"
                   placeholderTextColor="#475569"
                   style={{
