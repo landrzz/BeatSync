@@ -15,6 +15,8 @@ type PlaylistData = {
   trackRows: Array<{
     _id: Id<'playlist_items'>;
     title: string;
+    artistNames: string[];
+    isrc: string | undefined;
     canonicalTrackKey: string;
     spotifyMapping: { providerUri?: string; providerTrackId?: string } | null;
   }>;
@@ -136,6 +138,33 @@ export const _getCurrentUserId = internalQuery({
   },
 });
 
+export const _saveTrackMapping = internalMutation({
+  args: {
+    canonicalTrackKey: v.string(),
+    providerTrackId: v.string(),
+    providerUri: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query('track_mappings')
+      .withIndex('by_canonical_provider', (q) => q.eq('canonicalTrackKey', args.canonicalTrackKey).eq('provider', 'spotify'))
+      .unique();
+    const ts = now();
+    if (existing) {
+      await ctx.db.patch(existing._id, { providerTrackId: args.providerTrackId, providerUri: args.providerUri, updatedAt: ts });
+    } else {
+      await ctx.db.insert('track_mappings', {
+        canonicalTrackKey: args.canonicalTrackKey,
+        provider: 'spotify',
+        providerTrackId: args.providerTrackId,
+        providerUri: args.providerUri,
+        createdAt: ts,
+        updatedAt: ts,
+      });
+    }
+  },
+});
+
 export const _getPlaylistData = internalQuery({
   args: { playlistId: v.id('playlists'), userId: v.id('users') },
   handler: async (ctx, args) => {
@@ -163,6 +192,8 @@ export const _getPlaylistData = internalQuery({
     const trackRows = await Promise.all(tracks.map(async (track) => ({
       _id: track._id,
       title: track.title,
+      artistNames: track.artistNames,
+      isrc: track.isrc,
       canonicalTrackKey: track.canonicalTrackKey,
       spotifyMapping: await ctx.db
         .query('track_mappings')
@@ -523,7 +554,46 @@ export const syncPlaylistToSpotify = action({
       } else if (track.spotifyMapping?.providerTrackId) {
         uris.push(`spotify:track:${track.spotifyMapping.providerTrackId}`);
       } else {
-        missingMappings.push({ title: track.title });
+        // Try to find the track on Spotify via ISRC or title+artist search
+        let foundUri: string | undefined;
+        let foundId: string | undefined;
+
+        if (track.isrc) {
+          const isrcResp = await spotifyFetch(
+            `/search?type=track&limit=1&q=${encodeURIComponent(`isrc:${track.isrc}`)}`,
+            connection.accessToken,
+          );
+          if (isrcResp.ok) {
+            const isrcJson: any = await isrcResp.json();
+            const item = isrcJson.tracks?.items?.[0];
+            if (item) { foundId = item.id; foundUri = item.uri; }
+          }
+        }
+
+        if (!foundUri) {
+          const q = `${track.title} ${track.artistNames[0] ?? ''}`.trim();
+          const searchResp = await spotifyFetch(
+            `/search?type=track&limit=1&q=${encodeURIComponent(q)}`,
+            connection.accessToken,
+          );
+          if (!searchResp.ok) {
+            throw new Error(`Spotify search failed (${searchResp.status}) for "${track.title}"`);
+          }
+          const searchJson: any = await searchResp.json();
+          const item = searchJson.tracks?.items?.[0];
+          if (item) { foundId = item.id; foundUri = item.uri; }
+        }
+
+        if (foundUri && foundId) {
+          await ctx.runMutation(internal.spotify._saveTrackMapping, {
+            canonicalTrackKey: track.canonicalTrackKey,
+            providerTrackId: foundId,
+            providerUri: foundUri,
+          });
+          uris.push(foundUri);
+        } else {
+          missingMappings.push({ title: track.title });
+        }
       }
     }
 

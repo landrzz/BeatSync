@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import { useMutation, useQuery } from 'convex/react';
+import { useAction, useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 
 const ACCENT = '#22c55e';
@@ -45,7 +45,7 @@ export default function PlaylistDetailScreen() {
   const tracks = useQuery(api.tracks.getPlaylistTracks, !isNew && id ? { playlistId } : 'skip');
   const spotifyConnected = useQuery(api.spotify.isSpotifyConnected, !isNew ? {} : 'skip');
   const addTrack = useMutation(api.tracks.addTrackToPlaylist);
-  const syncPlaylist = useMutation(api.spotify.syncPlaylistToSpotify);
+  const syncPlaylist = useAction(api.spotify.syncPlaylistToSpotify);
   const createPlaylist = useMutation(api.playlists.createPlaylist);
 
   const [newName, setNewName] = useState('');
